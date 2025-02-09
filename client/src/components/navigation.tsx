@@ -1,17 +1,19 @@
 import { Link, useLocation } from "wouter";
 import { Wallet, Home, Send, Settings, QrCode, Image } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { decryptWallet } from "@/lib/encryption";
 
 export function Navigation() {
   const [location] = useLocation();
+  const { type } = decryptWallet("");
 
   const links = [
     { href: "/wallet", icon: Home, label: "Home" },
-    { href: "/send", icon: Send, label: "Send" },
+    { href: "/send", icon: Send, label: "Send", requiresFull: true },
     { href: "/receive", icon: QrCode, label: "Receive" },
-    { href: "/nfts", icon: Image, label: "NFTs" },
+    { href: "/nfts", icon: Image, label: "NFTs", requiresFull: true },
     { href: "/settings", icon: Settings, label: "Settings" }
-  ];
+  ].filter(link => !link.requiresFull || type === "full");
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background border-t">

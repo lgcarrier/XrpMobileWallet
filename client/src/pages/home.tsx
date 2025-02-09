@@ -33,6 +33,13 @@ export default function Home() {
           >
             Import Existing Wallet
           </Button>
+          <Button 
+            className="w-full" 
+            variant="secondary"
+            onClick={() => setLocation("/add-readonly-wallet")}
+          >
+            Add Read-only Wallet
+          </Button>
         </CardContent>
       </Card>
     </div>

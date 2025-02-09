@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import CreateWallet from "@/pages/create-wallet";
 import ImportWallet from "@/pages/import-wallet";
+import AddReadonlyWallet from "@/pages/add-readonly-wallet";
 import Wallet from "@/pages/wallet";
 import Send from "@/pages/send";
 import Receive from "@/pages/receive";
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/create-wallet" component={CreateWallet} />
       <Route path="/import-wallet" component={ImportWallet} />
+      <Route path="/add-readonly-wallet" component={AddReadonlyWallet} />
       <Route path="/wallet" component={Wallet} />
       <Route path="/send" component={Send} />
       <Route path="/receive" component={Receive} />
