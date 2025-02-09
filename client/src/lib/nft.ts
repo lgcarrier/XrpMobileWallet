@@ -92,7 +92,7 @@ async function fetchMetadata(uri: string): Promise<NFTMetadata> {
       return {
         name: data.name || 'Untitled NFT',
         description: data.description || '',
-        image: data.image ? ipfsToHttp(data.image) : '',
+        image: data.altImageData?.centralisedUri || data.altImageData?.rawCentralisedUri || (data.image ? ipfsToHttp(data.image) : ''),
         attributes: data.attributes || [],
         collection: {
           name: data.collection?.name || '',
@@ -107,7 +107,7 @@ async function fetchMetadata(uri: string): Promise<NFTMetadata> {
       return {
         name: data.name || 'Untitled NFT',
         description: data.description || '',
-        image: data.altImageData.centralisedUri,
+        image: data.altImageData.centralisedUri || data.altImageData.rawCentralisedUri,
         attributes: data.attributes || [],
         collection: {
           name: data.collection?.name || '',
