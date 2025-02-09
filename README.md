@@ -1,3 +1,53 @@
+# 🎮 XRP Ledger Wallet (Minecraft Edition)
+
+A feature-rich XRP Ledger wallet application with comprehensive blockchain interaction capabilities and a Minecraft-inspired UI. Manage your XRP assets, NFTs, and transactions with a familiar blocky aesthetic.
+
+![XRP Wallet Demo](generated-icon.png)
+
+## ✨ Features
+
+### 💰 Wallet Management
+- Create new wallets with secure encryption
+- Import existing wallets via seed phrase
+- Add read-only wallets for monitoring
+- View real-time XRP balance
+- Track transaction history
+- Support for both Mainnet and Testnet
+
+### 🖼️ NFT Features
+- View your NFT collection with metadata
+- Mint new NFTs with customizable properties
+- Sell NFTs with transfer fee settings
+- Burn unwanted NFTs
+- Enhanced metadata handling with IPFS integration
+
+### 🔒 Security
+- Client-side encryption for wallet data
+- No private keys stored on servers
+- Password-protected wallet access
+- Read-only wallet option for safe monitoring
+
+### 🎨 UI/UX
+- Minecraft-inspired responsive design
+- Dark/Light theme support
+- Mobile-friendly interface
+- Real-time balance updates
+- Transaction status notifications
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React (TypeScript), TailwindCSS, shadcn/ui
+- **Backend**: Express.js
+- **Blockchain**: XRPL.js
+- **State Management**: TanStack Query
+- **Routing**: Wouter
+- **Form Handling**: React Hook Form, Zod
+- **Styling**: Tailwind CSS with Minecraft theme
+
+## 📦 Installation
+
+1. Clone the repository
+```bash
 git clone <repository-url>
 cd xrp-wallet
 ```
@@ -72,3 +122,35 @@ npm test
 ### Building for Production
 ```bash
 npm run build
+```
+
+## 🔐 Security Considerations
+
+- Never share your seed phrase or private keys
+- Always verify transaction details before confirming
+- Use strong passwords for wallet encryption
+- Enable 2FA when available
+- Regularly backup your wallet information
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- XRPL.js team for the blockchain integration
+- Minecraft for design inspiration
+- shadcn/ui for the component library
+- Community contributors
+
+---
+
+Built with ❤️ using Replit
