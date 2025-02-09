@@ -76,7 +76,7 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
                 console.error('Error loading image:', e);
                 const target = e.target as HTMLImageElement;
                 target.onerror = null;
-                target.src = ''; 
+                target.src = '';
                 setError('Failed to load image');
               }}
             />
@@ -149,12 +149,7 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
                       </pre>
                     </div>
                   )}
-                  <div className="space-y-2">
-                    <h4 className="font-medium">URI</h4>
-                    <div className="text-sm font-mono break-all bg-muted p-4 rounded-lg">
-                      {nft.URI}
-                    </div>
-                  </div>
+
                 </div>
               </DialogContent>
             </Dialog>
