@@ -11,6 +11,8 @@ import Wallet from "@/pages/wallet";
 import Send from "@/pages/send";
 import Receive from "@/pages/receive";
 import Settings from "@/pages/settings";
+import NFTs from "@/pages/nfts";
+import MintNFT from "@/pages/mint-nft";
 
 function Router() {
   return (
@@ -22,6 +24,8 @@ function Router() {
       <Route path="/send" component={Send} />
       <Route path="/receive" component={Receive} />
       <Route path="/settings" component={Settings} />
+      <Route path="/nfts" component={NFTs} />
+      <Route path="/mint-nft" component={MintNFT} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Wallet, Home, Send, Settings, QrCode } from "lucide-react";
+import { Wallet, Home, Send, Settings, QrCode, Image } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Navigation() {
@@ -9,6 +9,7 @@ export function Navigation() {
     { href: "/wallet", icon: Home, label: "Home" },
     { href: "/send", icon: Send, label: "Send" },
     { href: "/receive", icon: QrCode, label: "Receive" },
+    { href: "/nfts", icon: Image, label: "NFTs" },
     { href: "/settings", icon: Settings, label: "Settings" }
   ];
 
