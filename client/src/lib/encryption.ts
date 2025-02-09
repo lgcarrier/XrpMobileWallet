@@ -2,14 +2,26 @@ import { Wallet } from "xrpl";
 
 const STORAGE_KEY = "encrypted_wallet";
 
-export function encryptWallet(wallet: Wallet, password: string): string {
-  const data = {
-    seed: wallet.seed,
+interface StoredWallet {
+  seed?: string;
+  address: string;
+  publicKey: string;
+  privateKey?: string;
+  type: "readonly" | "full";
+}
+
+export function encryptWallet(wallet: Wallet, password: string, type: "readonly" | "full"): string {
+  const data: StoredWallet = {
     address: wallet.address,
     publicKey: wallet.publicKey,
-    privateKey: wallet.privateKey
+    type
   };
-  
+
+  if (type === "full") {
+    data.seed = wallet.seed;
+    data.privateKey = wallet.privateKey;
+  }
+
   // In a production app, use a proper encryption library
   // This is just for demonstration
   const encrypted = btoa(JSON.stringify(data));
@@ -17,16 +29,31 @@ export function encryptWallet(wallet: Wallet, password: string): string {
   return encrypted;
 }
 
-export function decryptWallet(password: string): Wallet | null {
+export function decryptWallet(password: string): { wallet: Wallet | null, type: "readonly" | "full" } {
   const encrypted = localStorage.getItem(STORAGE_KEY);
-  if (!encrypted) return null;
-  
+  if (!encrypted) return { wallet: null, type: "full" };
+
   try {
     // In a production app, use a proper decryption library
-    const data = JSON.parse(atob(encrypted));
-    return Wallet.fromSeed(data.seed);
+    const data: StoredWallet = JSON.parse(atob(encrypted));
+
+    if (data.type === "full" && data.seed) {
+      return { 
+        wallet: Wallet.fromSeed(data.seed),
+        type: "full"
+      };
+    } else {
+      // For read-only wallets, we only store the address
+      return {
+        wallet: {
+          address: data.address,
+          publicKey: data.publicKey
+        } as Wallet,
+        type: "readonly"
+      };
+    }
   } catch (e) {
-    return null;
+    return { wallet: null, type: "full" };
   }
 }
 
