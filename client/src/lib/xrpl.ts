@@ -19,7 +19,7 @@ export async function createWallet() {
 export async function getBalance(address: string) {
   const client = await getClient();
   const response = await client.getXrpBalance(address);
-  return Number(response);
+  return parseFloat(response);
 }
 
 export async function getTransactions(address: string) {
@@ -33,11 +33,6 @@ export async function getTransactions(address: string) {
 }
 
 export async function sendXRP(wallet: Wallet, destination: string, amount: string) {
-  // Only allow sending if we have a private key
-  if (!wallet.privateKey) {
-    throw new Error("Cannot send XRP from a read-only wallet");
-  }
-
   const client = await getClient();
   const payment: Payment = {
     TransactionType: "Payment",
@@ -45,7 +40,7 @@ export async function sendXRP(wallet: Wallet, destination: string, amount: strin
     Amount: amount,
     Destination: destination
   };
-
+  
   const prepared = await client.autofill(payment);
   const signed = wallet.sign(prepared);
   const result = await client.submitAndWait(signed.tx_blob);
@@ -63,11 +58,6 @@ export function subscribeToAccount(address: string, callback: (tx: any) => void)
   });
 }
 
-export function importWallet(key: string, isReadOnly: boolean = false): Wallet {
-  if (isReadOnly) {
-    // For read-only wallets, create a new wallet with only public key functionality
-    return Wallet.fromPublicKey(key);
-  }
-  // For full access wallets, import using the seed
-  return Wallet.fromSeed(key);
+export function importWallet(seed: string) {
+  return Wallet.fromSeed(seed);
 }

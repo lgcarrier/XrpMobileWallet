@@ -7,20 +7,17 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 
 export default function ImportWallet() {
-  const [key, setKey] = useState("");
+  const [seed, setSeed] = useState("");
   const [password, setPassword] = useState("");
-  const [showKey, setShowKey] = useState(false);
-  const [isReadOnly, setIsReadOnly] = useState(false);
+  const [showSeed, setShowSeed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   const handleImport = async () => {
-    if (!key || (!isReadOnly && !password)) {
+    if (!seed || !password) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
@@ -31,8 +28,8 @@ export default function ImportWallet() {
 
     setIsLoading(true);
     try {
-      const wallet = importWallet(key, isReadOnly);
-      encryptWallet(wallet, password, isReadOnly ? 'readonly' : 'full');
+      const wallet = importWallet(seed);
+      encryptWallet(wallet, password);
       toast({
         title: "Success",
         description: "Wallet imported successfully",
@@ -41,7 +38,7 @@ export default function ImportWallet() {
     } catch (error) {
       toast({
         title: "Error",
-        description: isReadOnly ? "Invalid public key" : "Invalid seed phrase",
+        description: "Invalid seed phrase",
         variant: "destructive",
       });
     } finally {
@@ -56,43 +53,32 @@ export default function ImportWallet() {
           <CardTitle className="text-center">Import Wallet</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between space-x-2">
-            <Label htmlFor="read-only">Read-only Mode</Label>
-            <Switch
-              id="read-only"
-              checked={isReadOnly}
-              onCheckedChange={setIsReadOnly}
-            />
-          </div>
-
           <div className="space-y-2">
             <div className="relative">
               <Input
-                type={showKey ? "text" : "password"}
-                placeholder={isReadOnly ? "Enter public key" : "Enter seed phrase"}
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
+                type={showSeed ? "text" : "password"}
+                placeholder="Enter seed phrase"
+                value={seed}
+                onChange={(e) => setSeed(e.target.value)}
               />
               <button
                 type="button"
-                onClick={() => setShowKey(!showKey)}
+                onClick={() => setShowSeed(!showSeed)}
                 className="absolute right-3 top-2.5"
               >
-                {showKey ? (
+                {showSeed ? (
                   <EyeOff className="h-4 w-4 text-muted-foreground" />
                 ) : (
                   <Eye className="h-4 w-4 text-muted-foreground" />
                 )}
               </button>
             </div>
-            {!isReadOnly && (
-              <Input
-                type="password"
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            )}
+            <Input
+              type="password"
+              placeholder="Enter password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
           <Button
             className="w-full"

@@ -11,9 +11,7 @@ export default function Home() {
     if (hasStoredWallet()) {
       setLocation("/wallet");
     }
-    // We don't need setLocation in deps array as it's stable
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [setLocation]);
 
   return (
     <div className="container max-w-md mx-auto p-4 min-h-screen flex items-center">
