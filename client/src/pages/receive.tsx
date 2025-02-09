@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { decryptWallet } from "@/lib/encryption";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,7 @@ export default function Receive() {
   const [, setLocation] = useLocation();
   const [address, setAddress] = useState<string>("");
   const { toast } = useToast();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const wallet = decryptWallet("");
@@ -19,12 +20,13 @@ export default function Receive() {
       return;
     }
     setAddress(wallet.address);
+  }, [setLocation]);
 
-    // Generate QR code
-    if (wallet.address) {
+  useEffect(() => {
+    if (address && canvasRef.current) {
       QRCode.toCanvas(
-        document.getElementById("qr-code") as HTMLCanvasElement,
-        wallet.address,
+        canvasRef.current,
+        address,
         { 
           width: 256,
           margin: 2,
@@ -33,9 +35,11 @@ export default function Receive() {
             light: '#ffffff',
           }
         }
-      );
+      ).catch(error => {
+        console.error("Error generating QR code:", error);
+      });
     }
-  }, [setLocation]);
+  }, [address]);
 
   const copyAddress = () => {
     navigator.clipboard.writeText(address);
@@ -54,8 +58,8 @@ export default function Receive() {
           <CardTitle className="text-center">Receive XRP</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex justify-center">
-            <canvas id="qr-code" />
+          <div className="flex justify-center p-4 bg-white rounded-lg">
+            <canvas ref={canvasRef} />
           </div>
 
           <div className="space-y-2">
