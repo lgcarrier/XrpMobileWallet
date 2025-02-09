@@ -15,31 +15,69 @@ export interface NFTMetadata {
 }
 
 // Helper function to convert IPFS URI to HTTP URL
-function ipfsToHttp(uri: string): string {
-  if (!uri) return '';
-  if (uri.startsWith('ipfs://')) {
-    return uri.replace('ipfs://', 'https://ipfs.io/ipfs/');
-  }
-  return uri;
+function ipfsToHttp(ipfsHash: string): string {
+  if (!ipfsHash) return '';
+  return `https://ipfs.io/ipfs/${ipfsHash.replace('ipfs://', '')}`;
 }
 
-// Helper function to decode hex-encoded URI to string
-function decodeTokenURI(uri: string): string {
+export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMetadata | null> {
   try {
-    // Remove any 'hex://' prefix if present
-    const hexString = uri.replace('hex://', '');
+    console.log('Fetching metadata for token:', tokenID);
+    const client = await getClient();
 
-    // Check if the URI is hex-encoded (must be even length and valid hex chars)
-    if (hexString.length % 2 === 0 && /^[0-9A-F]+$/i.test(hexString)) {
-      const decoded = Buffer.from(hexString, 'hex').toString('utf8');
-      console.log('Decoded URI:', decoded);
-      return decoded;
+    // Get NFT info using NFTokenID
+    const response = await client.request({
+      command: "nft_info",
+      nft_id: tokenID
+    });
+
+    console.log('NFT info response:', response);
+
+    if (!response.result?.uri) {
+      console.log('No URI found in NFT info');
+      return null;
     }
-    return uri;
+
+    // Decode the hex-encoded URI
+    const hexUri = response.result.uri;
+    const decoded = Buffer.from(hexUri, 'hex').toString('utf8');
+    console.log('Decoded URI:', decoded);
+
+    // Handle data URLs
+    if (decoded.startsWith('data:application/json')) {
+      const json = decoded.substring(decoded.indexOf(',') + 1);
+      const metadata = JSON.parse(decodeURIComponent(json));
+      console.log('Parsed metadata from data URL:', metadata);
+      return metadata;
+    }
+
+    // Handle IPFS or HTTP URLs
+    const url = decoded.startsWith('ipfs://') ? ipfsToHttp(decoded) : decoded;
+    console.log('Fetching from URL:', url);
+
+    const response2 = await fetch(url);
+    if (!response2.ok) {
+      throw new Error(`HTTP error! status: ${response2.status}`);
+    }
+    const metadata = await response2.json();
+    console.log('Fetched metadata:', metadata);
+    return metadata;
   } catch (error) {
-    console.error('Error decoding URI:', error);
-    return uri;
+    console.error('Error fetching NFT metadata:', error);
+    return null;
   }
+}
+
+export async function getNFTs(account: string) {
+  const client = await getClient();
+
+  const response = await client.request({
+    command: "account_nfts",
+    account: account
+  });
+
+  console.log('NFTs response:', response.result.account_nfts);
+  return response.result.account_nfts;
 }
 
 export async function fetchNFTMetadata(uri: string): Promise<NFTMetadata | null> {
@@ -73,6 +111,25 @@ export async function fetchNFTMetadata(uri: string): Promise<NFTMetadata | null>
   }
 }
 
+// Helper function to decode hex-encoded URI to string
+function decodeTokenURI(uri: string): string {
+  try {
+    // Remove any 'hex://' prefix if present
+    const hexString = uri.replace('hex://', '');
+
+    // Check if the URI is hex-encoded (must be even length and valid hex chars)
+    if (hexString.length % 2 === 0 && /^[0-9A-F]+$/i.test(hexString)) {
+      const decoded = Buffer.from(hexString, 'hex').toString('utf8');
+      console.log('Decoded URI:', decoded);
+      return decoded;
+    }
+    return uri;
+  } catch (error) {
+    console.error('Error decoding URI:', error);
+    return uri;
+  }
+}
+
 export async function mintNFT(
   account: string,
   uri: string,
@@ -81,7 +138,7 @@ export async function mintNFT(
   taxon: number = 0
 ) {
   const client = await getClient();
-  
+
   const mintTx: NFTokenMint = {
     TransactionType: "NFTokenMint",
     Account: account,
@@ -103,7 +160,7 @@ export async function createSellOffer(
   destination?: string
 ) {
   const client = await getClient();
-  
+
   const offerTx: NFTokenCreateOffer = {
     TransactionType: "NFTokenCreateOffer",
     Account: account,
@@ -120,7 +177,7 @@ export async function createSellOffer(
 
 export async function acceptOffer(account: string, offerIndex: string) {
   const client = await getClient();
-  
+
   const acceptTx: NFTokenAcceptOffer = {
     TransactionType: "NFTokenAcceptOffer",
     Account: account,
@@ -134,7 +191,7 @@ export async function acceptOffer(account: string, offerIndex: string) {
 
 export async function burnNFT(account: string, tokenId: string) {
   const client = await getClient();
-  
+
   const burnTx: NFTokenBurn = {
     TransactionType: "NFTokenBurn",
     Account: account,
@@ -146,24 +203,14 @@ export async function burnNFT(account: string, tokenId: string) {
   return response;
 }
 
-export async function getNFTs(account: string) {
-  const client = await getClient();
-  
-  const response = await client.request({
-    command: "account_nfts",
-    account: account
-  });
-  
-  return response.result.account_nfts;
-}
 
 export async function getOffers(tokenId: string) {
   const client = await getClient();
-  
+
   const response = await client.request({
     command: "nft_sell_offers",
     nft_id: tokenId
   });
-  
+
   return response.result.offers;
 }

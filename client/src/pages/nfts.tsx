@@ -37,12 +37,12 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
       setError(null);
       try {
         console.log('Loading metadata for NFT:', nft);
-        if (!nft.URI) {
-          console.log('NFT missing URI:', nft);
-          setError('No URI available');
+        if (!nft.NFTokenID) {
+          console.log('NFT missing NFTokenID:', nft);
+          setError('No token ID available');
           return;
         }
-        const data = await fetchNFTMetadata(nft.URI);
+        const data = await getNFTMetadataFromTokenID(nft.NFTokenID);
         if (data) {
           console.log('Loaded metadata:', data);
           setMetadata(data);
@@ -57,7 +57,7 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
       }
     }
     loadMetadata();
-  }, [nft.URI]);
+  }, [nft.NFTokenID]);
 
   return (
     <Card className="overflow-hidden">
@@ -76,7 +76,7 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
                 console.error('Error loading image:', e);
                 const target = e.target as HTMLImageElement;
                 target.onerror = null;
-                target.src = ''; // Clear the source to show fallback
+                target.src = ''; 
                 setError('Failed to load image');
               }}
             />
