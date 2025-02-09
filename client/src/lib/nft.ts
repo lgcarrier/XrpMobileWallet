@@ -12,6 +12,7 @@ export interface NFTMetadata {
   }>;
   collection?: {
     name: string;
+    description?: string;
   };
 }
 
@@ -19,8 +20,8 @@ export interface NFTMetadata {
 function hexToString(hex: string): string {
   let str = "";
   try {
-    // Remove an optional "0x" prefix
-    hex = hex.replace(/^0x/, '');
+    // Remove an optional "0x" prefix and whitespace
+    hex = hex.replace(/^0x/, '').trim();
 
     // Validate hex string
     if (!/^[0-9A-F]+$/i.test(hex) || hex.length % 2 !== 0) {
@@ -41,17 +42,32 @@ function hexToString(hex: string): string {
 }
 
 // Helper function to convert IPFS URI to HTTP URL
-function ipfsToHttp(ipfsUri: string): string {
-  if (!ipfsUri) return '';
+function ipfsToHttp(uri: string): string {
+  if (!uri) return '';
 
   // If it's already an HTTP URL, return as is
-  if (ipfsUri.startsWith('http://') || ipfsUri.startsWith('https://')) {
-    return ipfsUri;
+  if (uri.startsWith('http://') || uri.startsWith('https://')) {
+    return uri;
   }
 
-  // Convert IPFS URI to HTTP URL
-  const hash = ipfsUri.replace('ipfs://', '');
-  return `https://ipfs.io/ipfs/${hash}`;
+  // If it's an IPFS URI, convert to HTTP URL
+  if (uri.startsWith('ipfs://')) {
+    const hash = uri.replace('ipfs://', '');
+    return `https://ipfs.io/ipfs/${hash}`;
+  }
+
+  // Handle direct IPFS hash
+  if (/^Qm[1-9A-Za-z]{44}/.test(uri) || /^bafy[A-Za-z2-7]{55}/.test(uri)) {
+    return `https://ipfs.io/ipfs/${uri}`;
+  }
+
+  // If it's a relative path and we have a base IPFS URL
+  if (uri.startsWith('/') && uri.includes('ipfs/')) {
+    return `https://ipfs.io${uri}`;
+  }
+
+  // Return as is if we can't determine the format
+  return uri;
 }
 
 // Helper function to fetch and normalize metadata
@@ -65,12 +81,27 @@ async function fetchMetadata(uri: string): Promise<NFTMetadata> {
     const data = await response.json();
     console.log('Fetched metadata:', data);
 
+    // Extract image URL from various possible locations
+    let imageUrl = data.image;
+    if (!imageUrl && data.properties?.image) {
+      imageUrl = data.properties.image.description || data.properties.image;
+    }
+    if (!imageUrl && data.properties?.files?.[0]?.uri) {
+      imageUrl = data.properties.files[0].uri;
+    }
+
+    // Try to find collection info
+    const collection = data.collection || {
+      name: data.properties?.collection?.name || data.collection_name,
+      description: data.properties?.collection?.description || data.collection_description
+    };
+
     return {
       name: data.name || 'Untitled NFT',
       description: data.description || '',
-      image: data.image ? ipfsToHttp(data.image) : '',
-      attributes: data.attributes || [],
-      collection: data.collection || null,
+      image: imageUrl ? ipfsToHttp(imageUrl) : '',
+      attributes: data.attributes || data.traits || [],
+      collection: collection?.name ? collection : null,
     };
   } catch (error) {
     console.error('Error fetching metadata:', error);
@@ -137,7 +168,7 @@ export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMet
     }
 
     // Handle IPFS or HTTP URLs
-    const url = decodedUri.startsWith('ipfs://') ? ipfsToHttp(decodedUri) : decodedUri;
+    const url = ipfsToHttp(decodedUri);
     return await fetchMetadata(url);
 
   } catch (error) {
