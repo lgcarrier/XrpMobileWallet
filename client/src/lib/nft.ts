@@ -76,21 +76,32 @@ function decodeData(data: string): string {
   }
 }
 
-export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMetadata | null> {
+export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMetadata> {
   try {
-    console.log('Fetching metadata for token:', tokenID);
-    const client = await getClient();
+    console.log('Starting metadata fetch for token:', tokenID);
+    let client;
+    try {
+      client = await getClient();
+      console.log('XRPL client connected');
+    } catch (error) {
+      console.error('Error connecting to XRPL:', error);
+      throw new Error('Failed to connect to XRPL');
+    }
 
-    // Get NFT info using NFTokenID
-    const response = await client.request({
-      command: "nft_info",
-      nft_id: tokenID
-    });
+    let nftInfoResponse;
+    try {
+      nftInfoResponse = await client.request({
+        command: "nft_info",
+        nft_id: tokenID
+      });
+      console.log('NFT info response:', JSON.stringify(nftInfoResponse, null, 2));
+    } catch (error) {
+      console.error('Error fetching NFT info:', error);
+      throw new Error('Failed to fetch NFT info');
+    }
 
-    console.log('NFT info full response:', response);
-
-    if (!response.result?.uri) {
-      console.log('No URI found in NFT info:', response.result);
+    if (!nftInfoResponse?.result?.uri) {
+      console.log('No URI found in NFT info:', nftInfoResponse?.result);
       return {
         name: `NFT #${tokenID.slice(-6)}`,
         description: 'No metadata available',
@@ -99,39 +110,38 @@ export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMet
     }
 
     // Decode the hex-encoded URI
-    const decodedUri = decodeData(response.result.uri);
-    console.log('Decoded URI:', decodedUri);
+    let decodedUri;
+    try {
+      decodedUri = decodeData(nftInfoResponse.result.uri);
+      console.log('Decoded URI:', decodedUri);
+    } catch (error) {
+      console.error('Error decoding URI:', error);
+      throw new Error('Failed to decode NFT URI');
+    }
 
     // Handle data URLs
     if (decodedUri.startsWith('data:application/json')) {
-      const json = decodedUri.substring(decodedUri.indexOf(',') + 1);
       try {
+        const json = decodedUri.substring(decodedUri.indexOf(',') + 1);
         let metadata = JSON.parse(decodeURIComponent(json));
         console.log('Parsed metadata from data URL:', metadata);
 
-        // Normalize metadata
-        metadata = {
+        return {
           name: metadata.name || `NFT #${tokenID.slice(-6)}`,
           description: metadata.description || '',
           image: metadata.image ? ipfsToHttp(metadata.image) : '',
           attributes: metadata.attributes || [],
           collection: metadata.collection || null,
         };
-
-        return metadata;
       } catch (error) {
         console.error('Error parsing data URL JSON:', error);
-        return {
-          name: `NFT #${tokenID.slice(-6)}`,
-          description: 'Error loading metadata',
-          image: '',
-        };
+        throw new Error('Failed to parse metadata from data URL');
       }
     }
 
     // Handle IPFS or HTTP URLs
     const url = decodedUri.startsWith('ipfs://') ? ipfsToHttp(decodedUri) : decodedUri;
-    console.log('Fetching from URL:', url);
+    console.log('Fetching metadata from URL:', url);
 
     try {
       const response = await fetch(url);
@@ -139,46 +149,46 @@ export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMet
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       let metadata = await response.json();
-      console.log('Fetched metadata:', metadata);
+      console.log('Fetched metadata from URL:', metadata);
 
-      // Normalize metadata
-      metadata = {
+      return {
         name: metadata.name || `NFT #${tokenID.slice(-6)}`,
         description: metadata.description || '',
         image: metadata.image ? ipfsToHttp(metadata.image) : '',
         attributes: metadata.attributes || [],
         collection: metadata.collection || null,
       };
-
-      return metadata;
     } catch (error) {
-      console.error('Error fetching metadata:', error);
-      return {
-        name: `NFT #${tokenID.slice(-6)}`,
-        description: 'Error loading metadata',
-        image: '',
-      };
+      console.error('Error fetching metadata from URL:', error);
+      throw new Error('Failed to fetch metadata from URL');
     }
   } catch (error) {
-    console.error('Error fetching NFT metadata:', error);
+    console.error('Error in getNFTMetadataFromTokenID:', error);
+    // Instead of returning null, return a fallback metadata object
     return {
       name: `NFT #${tokenID.slice(-6)}`,
-      description: 'Error loading metadata',
+      description: `Error loading metadata: ${error.message}`,
       image: '',
     };
   }
 }
 
 export async function getNFTs(account: string) {
-  const client = await getClient();
+  try {
+    console.log('Fetching NFTs for account:', account);
+    const client = await getClient();
 
-  const response = await client.request({
-    command: "account_nfts",
-    account: account
-  });
+    const response = await client.request({
+      command: "account_nfts",
+      account: account
+    });
 
-  console.log('NFTs response:', response.result.account_nfts);
-  return response.result.account_nfts;
+    console.log('NFTs response:', response.result.account_nfts);
+    return response.result.account_nfts;
+  } catch (error) {
+    console.error('Error fetching NFTs:', error);
+    throw error;
+  }
 }
 
 export async function mintNFT(

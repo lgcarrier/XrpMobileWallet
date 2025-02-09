@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { decryptWallet } from "@/lib/encryption";
-import { getNFTs, createSellOffer, burnNFT, fetchNFTMetadata, type NFTMetadata } from "@/lib/nft";
+import { getNFTs, createSellOffer, burnNFT, getNFTMetadataFromTokenID, type NFTMetadata } from "@/lib/nft";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Loader2, Plus, ExternalLink, Info } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
-
-const ipfsToHttp = (ipfsHash: string) => {
-  if (!ipfsHash) return '';
-  return `https://ipfs.io/ipfs/${ipfsHash.replace('ipfs://', '')}`;
-};
 
 interface NFTCardProps {
   nft: any;
@@ -43,15 +38,14 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
           return;
         }
         const data = await getNFTMetadataFromTokenID(nft.NFTokenID);
-        if (data) {
-          console.log('Loaded metadata:', data);
-          setMetadata(data);
-        } else {
-          setError('Failed to load metadata');
+        console.log('Loaded metadata:', data);
+        setMetadata(data);
+        if (!data.image) {
+          setError('No image available');
         }
       } catch (err) {
         console.error('Error loading metadata:', err);
-        setError('Error loading NFT data');
+        setError(err instanceof Error ? err.message : 'Error loading NFT data');
       } finally {
         setIsLoading(false);
       }
@@ -123,7 +117,7 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
           )}
 
           <div className="flex gap-2 mt-4">
-            <Dialog open={showRawData} onOpenChange={setShowRawData}>
+            <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
                   <Info className="h-4 w-4 mr-2" />
@@ -155,13 +149,13 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
 
             {type === "full" && (
               <>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" onClick={() => onCreateOffer(nft.NFTokenID)}>
-                      Sell
-                    </Button>
-                  </DialogTrigger>
-                </Dialog>
+                <Button
+                  variant="outline"
+                  onClick={() => onCreateOffer(nft.NFTokenID)}
+                  disabled={isSubmitting}
+                >
+                  Sell
+                </Button>
                 <Button
                   variant="destructive"
                   onClick={() => onBurn(nft.NFTokenID)}
