@@ -17,7 +17,29 @@ export interface NFTMetadata {
 // Helper function to convert IPFS URI to HTTP URL
 function ipfsToHttp(ipfsHash: string): string {
   if (!ipfsHash) return '';
-  return `https://ipfs.io/ipfs/${ipfsHash.replace('ipfs://', '')}`;
+  if (ipfsHash.startsWith('ipfs://')) {
+    return `https://ipfs.io/ipfs/${ipfsHash.replace('ipfs://', '')}`;
+  }
+  if (ipfsHash.startsWith('https://') || ipfsHash.startsWith('http://')) {
+    return ipfsHash;
+  }
+  // Assume it's a direct IPFS hash
+  return `https://ipfs.io/ipfs/${ipfsHash}`;
+}
+
+// Helper function to decode hex/base64 data
+function decodeData(data: string): string {
+  try {
+    // First try to decode as hex
+    if (/^[0-9A-F]+$/i.test(data) && data.length % 2 === 0) {
+      return Buffer.from(data, 'hex').toString('utf8');
+    }
+    // Then try base64
+    return atob(data);
+  } catch (error) {
+    console.error('Error decoding data:', error);
+    return data;
+  }
 }
 
 export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMetadata | null> {
@@ -39,29 +61,50 @@ export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMet
     }
 
     // Decode the hex-encoded URI
-    const hexUri = response.result.uri;
-    const decoded = Buffer.from(hexUri, 'hex').toString('utf8');
-    console.log('Decoded URI:', decoded);
+    const decodedUri = decodeData(response.result.uri);
+    console.log('Decoded URI:', decodedUri);
 
     // Handle data URLs
-    if (decoded.startsWith('data:application/json')) {
-      const json = decoded.substring(decoded.indexOf(',') + 1);
-      const metadata = JSON.parse(decodeURIComponent(json));
-      console.log('Parsed metadata from data URL:', metadata);
-      return metadata;
+    if (decodedUri.startsWith('data:application/json')) {
+      const json = decodedUri.substring(decodedUri.indexOf(',') + 1);
+      try {
+        const metadata = JSON.parse(decodeURIComponent(json));
+        console.log('Parsed metadata from data URL:', metadata);
+
+        // Ensure image URL is properly formatted
+        if (metadata.image) {
+          metadata.image = ipfsToHttp(metadata.image);
+        }
+
+        return metadata;
+      } catch (error) {
+        console.error('Error parsing data URL JSON:', error);
+        return null;
+      }
     }
 
     // Handle IPFS or HTTP URLs
-    const url = decoded.startsWith('ipfs://') ? ipfsToHttp(decoded) : decoded;
+    const url = decodedUri.startsWith('ipfs://') ? ipfsToHttp(decodedUri) : decodedUri;
     console.log('Fetching from URL:', url);
 
-    const response2 = await fetch(url);
-    if (!response2.ok) {
-      throw new Error(`HTTP error! status: ${response2.status}`);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const metadata = await response.json();
+      console.log('Fetched metadata:', metadata);
+
+      // Ensure image URL is properly formatted
+      if (metadata.image) {
+        metadata.image = ipfsToHttp(metadata.image);
+      }
+
+      return metadata;
+    } catch (error) {
+      console.error('Error fetching metadata:', error);
+      return null;
     }
-    const metadata = await response2.json();
-    console.log('Fetched metadata:', metadata);
-    return metadata;
   } catch (error) {
     console.error('Error fetching NFT metadata:', error);
     return null;
@@ -78,56 +121,6 @@ export async function getNFTs(account: string) {
 
   console.log('NFTs response:', response.result.account_nfts);
   return response.result.account_nfts;
-}
-
-export async function fetchNFTMetadata(uri: string): Promise<NFTMetadata | null> {
-  try {
-    console.log('Original URI:', uri);
-    const decodedUri = decodeTokenURI(uri);
-    console.log('Decoded URI:', decodedUri);
-
-    // Handle data URLs
-    if (decodedUri.startsWith('data:application/json')) {
-      const json = decodedUri.substring(decodedUri.indexOf(',') + 1);
-      const decoded = decodeURIComponent(json);
-      console.log('Parsed data URL:', decoded);
-      return JSON.parse(decoded);
-    }
-
-    // Handle IPFS or HTTP URLs
-    const url = ipfsToHttp(decodedUri);
-    console.log('Fetching from URL:', url);
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    console.log('Fetched metadata:', data);
-    return data;
-  } catch (error) {
-    console.error('Error fetching NFT metadata:', error);
-    return null;
-  }
-}
-
-// Helper function to decode hex-encoded URI to string
-function decodeTokenURI(uri: string): string {
-  try {
-    // Remove any 'hex://' prefix if present
-    const hexString = uri.replace('hex://', '');
-
-    // Check if the URI is hex-encoded (must be even length and valid hex chars)
-    if (hexString.length % 2 === 0 && /^[0-9A-F]+$/i.test(hexString)) {
-      const decoded = Buffer.from(hexString, 'hex').toString('utf8');
-      console.log('Decoded URI:', decoded);
-      return decoded;
-    }
-    return uri;
-  } catch (error) {
-    console.error('Error decoding URI:', error);
-    return uri;
-  }
 }
 
 export async function mintNFT(
@@ -202,7 +195,6 @@ export async function burnNFT(account: string, tokenId: string) {
   const response = await client.submit(prepared);
   return response;
 }
-
 
 export async function getOffers(tokenId: string) {
   const client = await getClient();
