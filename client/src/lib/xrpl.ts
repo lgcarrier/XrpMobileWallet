@@ -63,6 +63,11 @@ export function subscribeToAccount(address: string, callback: (tx: any) => void)
   });
 }
 
-export function importWallet(seed: string) {
-  return Wallet.fromSeed(seed);
+export function importWallet(key: string, isReadOnly: boolean = false): Wallet {
+  if (isReadOnly) {
+    // For read-only wallets, create a new wallet with only public key functionality
+    return Wallet.fromPublicKey(key);
+  }
+  // For full access wallets, import using the seed
+  return Wallet.fromSeed(key);
 }

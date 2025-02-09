@@ -31,15 +31,7 @@ export default function ImportWallet() {
 
     setIsLoading(true);
     try {
-      let wallet;
-      if (isReadOnly) {
-        // For read-only, the key should be a public key
-        wallet = new Wallet(key); // Assuming Wallet constructor exists and handles public keys
-      } else {
-        // For full access, the key should be a seed
-        wallet = importWallet(key);
-      }
-
+      const wallet = importWallet(key, isReadOnly);
       encryptWallet(wallet, password, isReadOnly ? 'readonly' : 'full');
       toast({
         title: "Success",
