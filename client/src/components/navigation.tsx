@@ -11,7 +11,7 @@ export function Navigation() {
     { href: "/wallet", icon: Home, label: "Home" },
     { href: "/send", icon: Send, label: "Send", requiresFull: true },
     { href: "/receive", icon: QrCode, label: "Receive" },
-    { href: "/nfts", icon: Image, label: "NFTs", requiresFull: true },
+    { href: "/nfts", icon: Image, label: "NFTs" },
     { href: "/settings", icon: Settings, label: "Settings" }
   ].filter(link => !link.requiresFull || type === "full");
 

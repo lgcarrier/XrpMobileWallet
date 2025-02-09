@@ -12,9 +12,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface NFTListProps {
   address: string;
+  type: "full" | "readonly";
 }
 
-function NFTList({ address }: NFTListProps) {
+function NFTList({ address, type }: NFTListProps) {
   const { data: nfts, isLoading } = useQuery({
     queryKey: ["nfts", address],
     queryFn: () => getNFTs(address)
@@ -93,45 +94,47 @@ function NFTList({ address }: NFTListProps) {
               <div className="text-sm text-muted-foreground">
                 Serial: {nft.nft_serial}
               </div>
-              <div className="flex gap-2 mt-4">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="outline"
-                      onClick={() => setSelectedNFT(nft)}
-                    >
-                      Sell
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Create Sell Offer</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <Input
-                        type="number"
-                        placeholder="Price in XRP"
-                        value={sellPrice}
-                        onChange={(e) => setSellPrice(e.target.value)}
-                      />
+              {type === "full" && (
+                <div className="flex gap-2 mt-4">
+                  <Dialog>
+                    <DialogTrigger asChild>
                       <Button 
-                        className="w-full"
-                        onClick={() => handleCreateOffer(nft.NFTokenID)}
-                        disabled={isSubmitting}
+                        variant="outline"
+                        onClick={() => setSelectedNFT(nft)}
                       >
-                        {isSubmitting ? "Creating..." : "Create Offer"}
+                        Sell
                       </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-                <Button 
-                  variant="destructive"
-                  onClick={() => handleBurn(nft.NFTokenID)}
-                  disabled={isSubmitting}
-                >
-                  Burn
-                </Button>
-              </div>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create Sell Offer</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <Input
+                          type="number"
+                          placeholder="Price in XRP"
+                          value={sellPrice}
+                          onChange={(e) => setSellPrice(e.target.value)}
+                        />
+                        <Button 
+                          className="w-full"
+                          onClick={() => handleCreateOffer(nft.NFTokenID)}
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? "Creating..." : "Create Offer"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Button 
+                    variant="destructive"
+                    onClick={() => handleBurn(nft.NFTokenID)}
+                    disabled={isSubmitting}
+                  >
+                    Burn
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -143,14 +146,16 @@ function NFTList({ address }: NFTListProps) {
 export default function NFTs() {
   const [, setLocation] = useLocation();
   const [address, setAddress] = useState<string>("");
+  const [walletType, setWalletType] = useState<"full" | "readonly">("full");
 
   useEffect(() => {
-    const wallet = decryptWallet("");
-    if (!wallet) {
+    const { address, type } = decryptWallet("");
+    if (!address) {
       setLocation("/");
       return;
     }
-    setAddress(wallet.address);
+    setAddress(address);
+    setWalletType(type);
   }, [setLocation]);
 
   if (!address) return null;
@@ -162,16 +167,20 @@ export default function NFTs() {
           <div className="flex justify-between items-center">
             <div>
               <CardTitle>My NFTs</CardTitle>
-              <CardDescription>Manage your NFT collection</CardDescription>
+              <CardDescription>
+                {walletType === "readonly" ? "View NFT collection" : "Manage your NFT collection"}
+              </CardDescription>
             </div>
-            <Button onClick={() => setLocation("/mint-nft")}>
-              <Plus className="h-4 w-4 mr-2" />
-              Mint NFT
-            </Button>
+            {walletType === "full" && (
+              <Button onClick={() => setLocation("/mint-nft")}>
+                <Plus className="h-4 w-4 mr-2" />
+                Mint NFT
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
-          <NFTList address={address} />
+          <NFTList address={address} type={walletType} />
         </CardContent>
       </Card>
     </div>
