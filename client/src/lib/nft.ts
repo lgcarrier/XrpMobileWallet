@@ -1,5 +1,6 @@
-import { Client, NFTokenMint, NFTokenCreateOffer, NFTokenBurn, NFTokenAcceptOffer } from "xrpl";
+import { Client, NFTokenMint, NFTokenCreateOffer, NFTokenBurn } from "xrpl";
 import { getClient } from "./xrpl";
+import { decryptWallet } from "./encryption";
 
 export interface NFTMetadata {
   name: string;
@@ -82,11 +83,19 @@ export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMet
     console.log('Getting metadata for token:', tokenID);
     const client = await getClient();
 
+    // Get the current wallet's address
+    const { address } = decryptWallet("");
+    if (!address) {
+      throw new Error('No wallet address available');
+    }
+
     // Get NFT info using account_nfts command
     const response = await client.request({
       command: "account_nfts",
-      account: client.address,
+      account: address
     });
+
+    console.log('NFTs response:', response);
 
     // Find the specific NFT
     const nft = response.result.account_nfts.find(
