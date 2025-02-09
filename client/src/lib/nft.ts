@@ -14,94 +14,90 @@ export interface NFTMetadata {
   };
 }
 
-// Helper function to convert IPFS URI to HTTP URL using multiple gateways
-function ipfsToHttp(ipfsHash: string): string {
-  if (!ipfsHash) return '';
+// Helper function to convert a hex-encoded string to a regular string
+function hexToString(hex: string): string {
+  let str = "";
+  try {
+    // Remove an optional "0x" prefix
+    hex = hex.replace(/^0x/, '');
 
-  // If it's already an HTTP URL, return as is
-  if (ipfsHash.startsWith('https://') || ipfsHash.startsWith('http://')) {
-    return ipfsHash;
+    // Validate hex string
+    if (!/^[0-9A-F]+$/i.test(hex) || hex.length % 2 !== 0) {
+      console.log('Invalid hex string:', hex);
+      return hex;
+    }
+
+    // Convert hex to string
+    for (let i = 0; i < hex.length; i += 2) {
+      str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    }
+    console.log('Decoded hex string:', str);
+    return str;
+  } catch (error) {
+    console.error('Error decoding hex string:', error);
+    return hex;
   }
-
-  // Remove ipfs:// prefix if present
-  const hash = ipfsHash.replace('ipfs://', '');
-
-  // Try multiple IPFS gateways
-  const gateways = [
-    'https://ipfs.io/ipfs/',
-    'https://cloudflare-ipfs.com/ipfs/',
-    'https://gateway.pinata.cloud/ipfs/'
-  ];
-
-  // Return the first gateway URL
-  return `${gateways[0]}${hash}`;
 }
 
-// Helper function to decode hex/base64 data with better error handling
-function decodeData(data: string): string {
+// Helper function to convert IPFS URI to HTTP URL
+function ipfsToHttp(ipfsUri: string): string {
+  if (!ipfsUri) return '';
+
+  // If it's already an HTTP URL, return as is
+  if (ipfsUri.startsWith('http://') || ipfsUri.startsWith('https://')) {
+    return ipfsUri;
+  }
+
+  // Convert IPFS URI to HTTP URL
+  const hash = ipfsUri.replace('ipfs://', '');
+  return `https://ipfs.io/ipfs/${hash}`;
+}
+
+// Helper function to fetch and normalize metadata
+async function fetchMetadata(uri: string): Promise<NFTMetadata> {
   try {
-    // If empty or not a string, return as is
-    if (!data || typeof data !== 'string') {
-      console.log('Invalid data to decode:', data);
-      return data;
+    console.log('Fetching metadata from:', uri);
+    const response = await fetch(uri);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+    const data = await response.json();
+    console.log('Fetched metadata:', data);
 
-    // Remove any whitespace
-    data = data.trim();
-
-    // First try to decode as hex if it looks like hex
-    if (/^[0-9A-F]+$/i.test(data) && data.length % 2 === 0) {
-      const decoded = Buffer.from(data, 'hex').toString('utf8');
-      console.log('Decoded hex data:', decoded);
-      return decoded;
-    }
-
-    // Then try base64 if it looks like base64
-    if (/^[A-Za-z0-9+/=]+$/.test(data)) {
-      try {
-        const decoded = atob(data);
-        console.log('Decoded base64 data:', decoded);
-        return decoded;
-      } catch {
-        // Not valid base64, return as is
-        return data;
-      }
-    }
-
-    // If neither hex nor base64, return as is
-    return data;
+    return {
+      name: data.name || 'Untitled NFT',
+      description: data.description || '',
+      image: data.image ? ipfsToHttp(data.image) : '',
+      attributes: data.attributes || [],
+      collection: data.collection || null,
+    };
   } catch (error) {
-    console.error('Error decoding data:', error);
-    return data;
+    console.error('Error fetching metadata:', error);
+    throw error;
   }
 }
 
 export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMetadata> {
   try {
-    console.log('Starting metadata fetch for token:', tokenID);
-    let client;
-    try {
-      client = await getClient();
-      console.log('XRPL client connected');
-    } catch (error) {
-      console.error('Error connecting to XRPL:', error);
-      throw new Error('Failed to connect to XRPL');
+    console.log('Getting metadata for token:', tokenID);
+    const client = await getClient();
+
+    // Get NFT info using account_nfts command
+    const response = await client.request({
+      command: "account_nfts",
+      account: client.address,
+    });
+
+    // Find the specific NFT
+    const nft = response.result.account_nfts.find(
+      (n: any) => n.NFTokenID === tokenID
+    );
+
+    if (!nft) {
+      throw new Error('NFT not found');
     }
 
-    let nftInfoResponse;
-    try {
-      nftInfoResponse = await client.request({
-        command: "nft_info",
-        nft_id: tokenID
-      });
-      console.log('NFT info response:', JSON.stringify(nftInfoResponse, null, 2));
-    } catch (error) {
-      console.error('Error fetching NFT info:', error);
-      throw new Error('Failed to fetch NFT info');
-    }
-
-    if (!nftInfoResponse?.result?.uri) {
-      console.log('No URI found in NFT info:', nftInfoResponse?.result);
+    if (!nft.URI) {
       return {
         name: `NFT #${tokenID.slice(-6)}`,
         description: 'No metadata available',
@@ -109,23 +105,15 @@ export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMet
       };
     }
 
-    // Decode the hex-encoded URI
-    let decodedUri;
-    try {
-      decodedUri = decodeData(nftInfoResponse.result.uri);
-      console.log('Decoded URI:', decodedUri);
-    } catch (error) {
-      console.error('Error decoding URI:', error);
-      throw new Error('Failed to decode NFT URI');
-    }
+    // Decode the URI
+    const decodedUri = hexToString(nft.URI);
+    console.log('Decoded URI:', decodedUri);
 
     // Handle data URLs
     if (decodedUri.startsWith('data:application/json')) {
       try {
         const json = decodedUri.substring(decodedUri.indexOf(',') + 1);
-        let metadata = JSON.parse(decodeURIComponent(json));
-        console.log('Parsed metadata from data URL:', metadata);
-
+        const metadata = JSON.parse(decodeURIComponent(json));
         return {
           name: metadata.name || `NFT #${tokenID.slice(-6)}`,
           description: metadata.description || '',
@@ -134,40 +122,20 @@ export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMet
           collection: metadata.collection || null,
         };
       } catch (error) {
-        console.error('Error parsing data URL JSON:', error);
-        throw new Error('Failed to parse metadata from data URL');
+        console.error('Error parsing data URL:', error);
+        throw error;
       }
     }
 
     // Handle IPFS or HTTP URLs
     const url = decodedUri.startsWith('ipfs://') ? ipfsToHttp(decodedUri) : decodedUri;
-    console.log('Fetching metadata from URL:', url);
+    return await fetchMetadata(url);
 
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      let metadata = await response.json();
-      console.log('Fetched metadata from URL:', metadata);
-
-      return {
-        name: metadata.name || `NFT #${tokenID.slice(-6)}`,
-        description: metadata.description || '',
-        image: metadata.image ? ipfsToHttp(metadata.image) : '',
-        attributes: metadata.attributes || [],
-        collection: metadata.collection || null,
-      };
-    } catch (error) {
-      console.error('Error fetching metadata from URL:', error);
-      throw new Error('Failed to fetch metadata from URL');
-    }
   } catch (error) {
-    console.error('Error in getNFTMetadataFromTokenID:', error);
-    // Instead of returning null, return a fallback metadata object
+    console.error('Error getting NFT metadata:', error);
     return {
       name: `NFT #${tokenID.slice(-6)}`,
-      description: `Error loading metadata: ${error.message}`,
+      description: error instanceof Error ? error.message : 'Error loading metadata',
       image: '',
     };
   }
@@ -232,20 +200,6 @@ export async function createSellOffer(
   };
 
   const prepared = await client.autofill(offerTx);
-  const response = await client.submit(prepared);
-  return response;
-}
-
-export async function acceptOffer(account: string, offerIndex: string) {
-  const client = await getClient();
-
-  const acceptTx: NFTokenAcceptOffer = {
-    TransactionType: "NFTokenAcceptOffer",
-    Account: account,
-    NFTokenSellOffer: offerIndex
-  };
-
-  const prepared = await client.autofill(acceptTx);
   const response = await client.submit(prepared);
   return response;
 }

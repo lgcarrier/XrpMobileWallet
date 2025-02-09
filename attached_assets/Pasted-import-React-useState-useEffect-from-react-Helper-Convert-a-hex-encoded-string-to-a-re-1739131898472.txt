@@ -1,0 +1,91 @@
+import React, { useState, useEffect } from "react";
+
+// Helper: Convert a hex-encoded string to a regular string.
+function hexToString(hex) {
+  let str = "";
+  // Remove an optional "0x" prefix
+  if (hex.startsWith("0x")) hex = hex.slice(2);
+  for (let i = 0; i < hex.length; i += 2) {
+    str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+  }
+  return str;
+}
+
+// Helper: Convert an IPFS URI (ipfs://...) to an HTTP URL via a public gateway.
+function ipfsToHttp(ipfsUri) {
+  return ipfsUri.replace("ipfs://", "https://ipfs.io/ipfs/");
+}
+
+// Helper: Fetch JSON metadata from an IPFS URI.
+async function getMetadata(ipfsUri) {
+  const url = ipfsToHttp(ipfsUri);
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`HTTP error! Status: ${response.status}`);
+  }
+  return response.json();
+}
+
+// NFTGallery component: Accepts a list of NFT objects (each with a hex-encoded URI)
+// and displays the associated image (and name) from its metadata.
+function NFTGallery({ nftList }) {
+  const [nfts, setNfts] = useState([]);
+
+  useEffect(() => {
+    async function fetchNFTData() {
+      // For each NFT object, decode the URI, fetch its metadata, and extract the image URL.
+      const nftData = await Promise.all(
+        nftList.map(async (nft) => {
+          // Decode the hex string to get the IPFS URI, e.g. "ipfs://bafy..."
+          const decodedURI = hexToString(nft.URI);
+          // Fetch the metadata JSON from IPFS.
+          const metadata = await getMetadata(decodedURI);
+          // Convert the image field from IPFS URI to an HTTP URL.
+          const imageUrl = ipfsToHttp(metadata.image);
+          return {
+            name: metadata.name || "Unnamed NFT",
+            imageUrl,
+          };
+        })
+      );
+      setNfts(nftData);
+    }
+    fetchNFTData().catch((error) => console.error("Error fetching NFT data:", error));
+  }, [nftList]);
+
+  return (
+    <div className="nft-gallery">
+      {nfts.map((nft, index) => (
+        <div key={index} className="nft-item" style={{ marginBottom: "1rem" }}>
+          <h3>{nft.name}</h3>
+          <img src={nft.imageUrl} alt={nft.name} style={{ maxWidth: "200px" }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// App component: For demonstration, we use a sample NFT list.
+// In practice, you would query your XRPL wallet for NFT objects.
+function App() {
+  // Example NFT object with a hex-encoded URI.
+  // Replace this sample with actual data from an XRPL "account_nfts" call.
+  const sampleNFTList = [
+    {
+      // This hex string should decode to something like:
+      // "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf4dfuylqabf3oclgtqy55fbzdi"
+      URI:
+        "697066733a2f2f62616679626569676479727a747366703775646d37687537367568377932366e663466647675796c71616266336f636c67747935796662636469"
+    },
+    // You can add more NFT objects here.
+  ];
+
+  return (
+    <div className="App">
+      <h1>XRPL NFT Gallery</h1>
+      <NFTGallery nftList={sampleNFTList} />
+    </div>
+  );
+}
+
+export default App;
