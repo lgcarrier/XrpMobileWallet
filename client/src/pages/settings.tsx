@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Settings } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import { getClient } from "@/lib/xrpl";
 
 export default function Settings() {
   const [, setLocation] = useLocation();
@@ -40,7 +41,13 @@ export default function Settings() {
           networkType: network
         }
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/settings/${address}`] });
+
+      // Force XRPL client to reconnect with new network
+      await getClient(network);
+
+      // Invalidate all queries to refresh data with new network
+      queryClient.invalidateQueries();
+
       toast({
         title: "Success",
         description: "Network updated successfully"
