@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus, ExternalLink } from "lucide-react";
+import { Loader2, Plus, ExternalLink, Info } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 
@@ -29,6 +29,7 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
   const [metadata, setMetadata] = useState<NFTMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showRawData, setShowRawData] = useState(false);
 
   useEffect(() => {
     async function loadMetadata() {
@@ -37,6 +38,7 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
       try {
         console.log('Loading metadata for NFT:', nft);
         if (!nft.URI) {
+          console.log('NFT missing URI:', nft);
           setError('No URI available');
           return;
         }
@@ -120,24 +122,62 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
             </div>
           )}
 
-          {type === "full" && (
-            <div className="flex gap-2 mt-4">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" onClick={() => onCreateOffer(nft.NFTokenID)}>
-                    Sell
-                  </Button>
-                </DialogTrigger>
-              </Dialog>
-              <Button
-                variant="destructive"
-                onClick={() => onBurn(nft.NFTokenID)}
-                disabled={isSubmitting}
-              >
-                Burn
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-2 mt-4">
+            <Dialog open={showRawData} onOpenChange={setShowRawData}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Info className="h-4 w-4 mr-2" />
+                  Raw Data
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>NFT Raw Data</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Token Data</h4>
+                    <pre className="bg-muted p-4 rounded-lg overflow-auto text-xs">
+                      {JSON.stringify(nft, null, 2)}
+                    </pre>
+                  </div>
+                  {metadata && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium">Metadata</h4>
+                      <pre className="bg-muted p-4 rounded-lg overflow-auto text-xs">
+                        {JSON.stringify(metadata, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <h4 className="font-medium">URI</h4>
+                    <div className="text-sm font-mono break-all bg-muted p-4 rounded-lg">
+                      {nft.URI}
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {type === "full" && (
+              <>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" onClick={() => onCreateOffer(nft.NFTokenID)}>
+                      Sell
+                    </Button>
+                  </DialogTrigger>
+                </Dialog>
+                <Button
+                  variant="destructive"
+                  onClick={() => onBurn(nft.NFTokenID)}
+                  disabled={isSubmitting}
+                >
+                  Burn
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
