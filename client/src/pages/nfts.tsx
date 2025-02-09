@@ -69,7 +69,7 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
         ) : metadata?.image ? (
           <div className="relative w-full h-full">
             <img
-              src={ipfsToHttp(metadata.image)}
+              src={metadata.image}
               alt={metadata.name || 'NFT'}
               className="object-cover w-full h-full"
               onError={(e) => {
@@ -149,7 +149,6 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
                       </pre>
                     </div>
                   )}
-
                 </div>
               </DialogContent>
             </Dialog>

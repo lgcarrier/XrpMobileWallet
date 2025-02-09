@@ -14,28 +14,62 @@ export interface NFTMetadata {
   };
 }
 
-// Helper function to convert IPFS URI to HTTP URL
+// Helper function to convert IPFS URI to HTTP URL using multiple gateways
 function ipfsToHttp(ipfsHash: string): string {
   if (!ipfsHash) return '';
-  if (ipfsHash.startsWith('ipfs://')) {
-    return `https://ipfs.io/ipfs/${ipfsHash.replace('ipfs://', '')}`;
-  }
+
+  // If it's already an HTTP URL, return as is
   if (ipfsHash.startsWith('https://') || ipfsHash.startsWith('http://')) {
     return ipfsHash;
   }
-  // Assume it's a direct IPFS hash
-  return `https://ipfs.io/ipfs/${ipfsHash}`;
+
+  // Remove ipfs:// prefix if present
+  const hash = ipfsHash.replace('ipfs://', '');
+
+  // Try multiple IPFS gateways
+  const gateways = [
+    'https://ipfs.io/ipfs/',
+    'https://cloudflare-ipfs.com/ipfs/',
+    'https://gateway.pinata.cloud/ipfs/'
+  ];
+
+  // Return the first gateway URL
+  return `${gateways[0]}${hash}`;
 }
 
-// Helper function to decode hex/base64 data
+// Helper function to decode hex/base64 data with better error handling
 function decodeData(data: string): string {
   try {
-    // First try to decode as hex
-    if (/^[0-9A-F]+$/i.test(data) && data.length % 2 === 0) {
-      return Buffer.from(data, 'hex').toString('utf8');
+    // If empty or not a string, return as is
+    if (!data || typeof data !== 'string') {
+      console.log('Invalid data to decode:', data);
+      return data;
     }
-    // Then try base64
-    return atob(data);
+
+    // Remove any whitespace
+    data = data.trim();
+
+    // First try to decode as hex if it looks like hex
+    if (/^[0-9A-F]+$/i.test(data) && data.length % 2 === 0) {
+      const decoded = Buffer.from(data, 'hex').toString('utf8');
+      console.log('Decoded hex data:', decoded);
+      return decoded;
+    }
+
+    // Then try base64 if it looks like base64
+    if (/^[A-Za-z0-9+/=]+$/.test(data)) {
+      try {
+        const decoded = atob(data);
+        console.log('Decoded base64 data:', decoded);
+        return decoded;
+      } catch {
+        // Not valid base64, return as is
+        return data;
+      }
+    }
+
+    // If neither hex nor base64, return as is
+    return data;
   } catch (error) {
     console.error('Error decoding data:', error);
     return data;
@@ -53,11 +87,15 @@ export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMet
       nft_id: tokenID
     });
 
-    console.log('NFT info response:', response);
+    console.log('NFT info full response:', response);
 
     if (!response.result?.uri) {
-      console.log('No URI found in NFT info');
-      return null;
+      console.log('No URI found in NFT info:', response.result);
+      return {
+        name: `NFT #${tokenID.slice(-6)}`,
+        description: 'No metadata available',
+        image: '',
+      };
     }
 
     // Decode the hex-encoded URI
@@ -68,18 +106,26 @@ export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMet
     if (decodedUri.startsWith('data:application/json')) {
       const json = decodedUri.substring(decodedUri.indexOf(',') + 1);
       try {
-        const metadata = JSON.parse(decodeURIComponent(json));
+        let metadata = JSON.parse(decodeURIComponent(json));
         console.log('Parsed metadata from data URL:', metadata);
 
-        // Ensure image URL is properly formatted
-        if (metadata.image) {
-          metadata.image = ipfsToHttp(metadata.image);
-        }
+        // Normalize metadata
+        metadata = {
+          name: metadata.name || `NFT #${tokenID.slice(-6)}`,
+          description: metadata.description || '',
+          image: metadata.image ? ipfsToHttp(metadata.image) : '',
+          attributes: metadata.attributes || [],
+          collection: metadata.collection || null,
+        };
 
         return metadata;
       } catch (error) {
         console.error('Error parsing data URL JSON:', error);
-        return null;
+        return {
+          name: `NFT #${tokenID.slice(-6)}`,
+          description: 'Error loading metadata',
+          image: '',
+        };
       }
     }
 
@@ -92,22 +138,34 @@ export async function getNFTMetadataFromTokenID(tokenID: string): Promise<NFTMet
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const metadata = await response.json();
+      let metadata = await response.json();
       console.log('Fetched metadata:', metadata);
 
-      // Ensure image URL is properly formatted
-      if (metadata.image) {
-        metadata.image = ipfsToHttp(metadata.image);
-      }
+      // Normalize metadata
+      metadata = {
+        name: metadata.name || `NFT #${tokenID.slice(-6)}`,
+        description: metadata.description || '',
+        image: metadata.image ? ipfsToHttp(metadata.image) : '',
+        attributes: metadata.attributes || [],
+        collection: metadata.collection || null,
+      };
 
       return metadata;
     } catch (error) {
       console.error('Error fetching metadata:', error);
-      return null;
+      return {
+        name: `NFT #${tokenID.slice(-6)}`,
+        description: 'Error loading metadata',
+        image: '',
+      };
     }
   } catch (error) {
     console.error('Error fetching NFT metadata:', error);
-    return null;
+    return {
+      name: `NFT #${tokenID.slice(-6)}`,
+      description: 'Error loading metadata',
+      image: '',
+    };
   }
 }
 
