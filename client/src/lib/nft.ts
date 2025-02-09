@@ -102,6 +102,21 @@ async function fetchMetadata(uri: string): Promise<NFTMetadata> {
       };
     }
 
+    // Handle xSPECTAR alternate format
+    if (data.altImageData?.centralisedUri) {
+      return {
+        name: data.name || 'Untitled NFT',
+        description: data.description || '',
+        image: data.altImageData.centralisedUri,
+        attributes: data.attributes || [],
+        collection: {
+          name: data.collection?.name || '',
+          family: data.collection?.family || '',
+          description: data.collection?.description || ''
+        }
+      };
+    }
+
     // Extract image URL from various possible locations
     let imageUrl = data.image;
     if (!imageUrl && data.properties?.image) {
@@ -109,6 +124,9 @@ async function fetchMetadata(uri: string): Promise<NFTMetadata> {
     }
     if (!imageUrl && data.properties?.files?.[0]?.uri) {
       imageUrl = data.properties.files[0].uri;
+    }
+    if (!imageUrl && data.alternative_sources?.image?.[0]) {
+      imageUrl = data.alternative_sources.image[0];
     }
 
     // Try to find collection info
