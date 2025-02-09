@@ -16,6 +16,7 @@ export interface NFTMetadata {
 
 // Helper function to convert IPFS URI to HTTP URL
 function ipfsToHttp(uri: string): string {
+  if (!uri) return '';
   if (uri.startsWith('ipfs://')) {
     return uri.replace('ipfs://', 'https://ipfs.io/ipfs/');
   }
@@ -25,30 +26,46 @@ function ipfsToHttp(uri: string): string {
 // Helper function to decode hex-encoded URI to string
 function decodeTokenURI(uri: string): string {
   try {
-    // Check if the URI is hex-encoded
-    if (/^[0-9A-F]+$/i.test(uri)) {
-      return Buffer.from(uri, 'hex').toString('utf8');
+    // Remove any 'hex://' prefix if present
+    const hexString = uri.replace('hex://', '');
+
+    // Check if the URI is hex-encoded (must be even length and valid hex chars)
+    if (hexString.length % 2 === 0 && /^[0-9A-F]+$/i.test(hexString)) {
+      const decoded = Buffer.from(hexString, 'hex').toString('utf8');
+      console.log('Decoded URI:', decoded);
+      return decoded;
     }
     return uri;
-  } catch {
+  } catch (error) {
+    console.error('Error decoding URI:', error);
     return uri;
   }
 }
 
 export async function fetchNFTMetadata(uri: string): Promise<NFTMetadata | null> {
   try {
+    console.log('Original URI:', uri);
     const decodedUri = decodeTokenURI(uri);
-    const url = ipfsToHttp(decodedUri);
+    console.log('Decoded URI:', decodedUri);
 
-    // Handle data URLs directly
-    if (decodedUri.startsWith('data:application/json,')) {
-      const json = decodedUri.substring('data:application/json,'.length);
-      return JSON.parse(decodeURIComponent(json));
+    // Handle data URLs
+    if (decodedUri.startsWith('data:application/json')) {
+      const json = decodedUri.substring(decodedUri.indexOf(',') + 1);
+      const decoded = decodeURIComponent(json);
+      console.log('Parsed data URL:', decoded);
+      return JSON.parse(decoded);
     }
 
-    // Fetch metadata from URL
+    // Handle IPFS or HTTP URLs
+    const url = ipfsToHttp(decodedUri);
+    console.log('Fetching from URL:', url);
+
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     const data = await response.json();
+    console.log('Fetched metadata:', data);
     return data;
   } catch (error) {
     console.error('Error fetching NFT metadata:', error);

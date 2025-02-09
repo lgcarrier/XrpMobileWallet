@@ -28,14 +28,31 @@ interface NFTCardProps {
 function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NFTCardProps) {
   const [metadata, setMetadata] = useState<NFTMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadMetadata() {
-      if (nft.URI) {
+      setIsLoading(true);
+      setError(null);
+      try {
+        console.log('Loading metadata for NFT:', nft);
+        if (!nft.URI) {
+          setError('No URI available');
+          return;
+        }
         const data = await fetchNFTMetadata(nft.URI);
-        setMetadata(data);
+        if (data) {
+          console.log('Loaded metadata:', data);
+          setMetadata(data);
+        } else {
+          setError('Failed to load metadata');
+        }
+      } catch (err) {
+        console.error('Error loading metadata:', err);
+        setError('Error loading NFT data');
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
     loadMetadata();
   }, [nft.URI]);
@@ -48,14 +65,28 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : metadata?.image ? (
-          <img
-            src={ipfsToHttp(metadata.image)}
-            alt={metadata.name || 'NFT'}
-            className="object-cover w-full h-full"
-          />
+          <div className="relative w-full h-full">
+            <img
+              src={ipfsToHttp(metadata.image)}
+              alt={metadata.name || 'NFT'}
+              className="object-cover w-full h-full"
+              onError={(e) => {
+                console.error('Error loading image:', e);
+                const target = e.target as HTMLImageElement;
+                target.onerror = null;
+                target.src = ''; // Clear the source to show fallback
+                setError('Failed to load image');
+              }}
+            />
+            {error && (
+              <div className="absolute inset-0 flex items-center justify-center bg-muted bg-opacity-90">
+                <p className="text-sm text-muted-foreground">{error}</p>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-            No image
+            {error || 'No image available'}
           </div>
         )}
       </div>
@@ -63,7 +94,7 @@ function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NF
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="font-medium truncate">
-              {metadata?.name || `NFT #${nft.nft_serial}`}
+              {metadata?.name || `NFT #${nft.NFTokenID?.slice(-6)}`}
             </h3>
             {metadata?.collection && (
               <Badge variant="secondary" className="truncate max-w-[150px]">
