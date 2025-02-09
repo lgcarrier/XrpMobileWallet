@@ -13,6 +13,7 @@ export interface NFTMetadata {
   collection?: {
     name: string;
     description?: string;
+    family?: string;
   };
 }
 
@@ -47,6 +48,11 @@ function ipfsToHttp(uri: string): string {
 
   // If it's already an HTTP URL, return as is
   if (uri.startsWith('http://') || uri.startsWith('https://')) {
+    // Special handling for filebase.io URLs
+    if (uri.includes('ipfs.filebase.io')) {
+      const ipfsPath = uri.split('/ipfs/')[1];
+      return `https://ipfs.io/ipfs/${ipfsPath}`;
+    }
     return uri;
   }
 
@@ -80,6 +86,21 @@ async function fetchMetadata(uri: string): Promise<NFTMetadata> {
     }
     const data = await response.json();
     console.log('Fetched metadata:', data);
+
+    // Handle xSPECTAR collection format
+    if (data.schema?.includes('filebase.io')) {
+      return {
+        name: data.name || 'Untitled NFT',
+        description: data.description || '',
+        image: data.image ? ipfsToHttp(data.image) : '',
+        attributes: data.attributes || [],
+        collection: {
+          name: data.collection?.name || '',
+          family: data.collection?.family || '',
+          description: data.collection?.description || ''
+        }
+      };
+    }
 
     // Extract image URL from various possible locations
     let imageUrl = data.image;
