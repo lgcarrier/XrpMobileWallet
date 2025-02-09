@@ -9,6 +9,51 @@ export interface NFTMetadata {
     trait_type: string;
     value: string;
   }>;
+  collection?: {
+    name: string;
+  };
+}
+
+// Helper function to convert IPFS URI to HTTP URL
+function ipfsToHttp(uri: string): string {
+  if (uri.startsWith('ipfs://')) {
+    return uri.replace('ipfs://', 'https://ipfs.io/ipfs/');
+  }
+  return uri;
+}
+
+// Helper function to decode hex-encoded URI to string
+function decodeTokenURI(uri: string): string {
+  try {
+    // Check if the URI is hex-encoded
+    if (/^[0-9A-F]+$/i.test(uri)) {
+      return Buffer.from(uri, 'hex').toString('utf8');
+    }
+    return uri;
+  } catch {
+    return uri;
+  }
+}
+
+export async function fetchNFTMetadata(uri: string): Promise<NFTMetadata | null> {
+  try {
+    const decodedUri = decodeTokenURI(uri);
+    const url = ipfsToHttp(decodedUri);
+
+    // Handle data URLs directly
+    if (decodedUri.startsWith('data:application/json,')) {
+      const json = decodedUri.substring('data:application/json,'.length);
+      return JSON.parse(decodeURIComponent(json));
+    }
+
+    // Fetch metadata from URL
+    const response = await fetch(url);
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching NFT metadata:', error);
+    return null;
+  }
 }
 
 export async function mintNFT(

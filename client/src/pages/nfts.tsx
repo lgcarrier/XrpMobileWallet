@@ -1,14 +1,117 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { decryptWallet } from "@/lib/encryption";
-import { getNFTs, createSellOffer, burnNFT } from "@/lib/nft";
+import { getNFTs, createSellOffer, burnNFT, fetchNFTMetadata, type NFTMetadata } from "@/lib/nft";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, ExternalLink } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
+
+const ipfsToHttp = (ipfsHash: string) => {
+  if (!ipfsHash) return '';
+  return `https://ipfs.io/ipfs/${ipfsHash.replace('ipfs://', '')}`;
+};
+
+interface NFTCardProps {
+  nft: any;
+  address: string;
+  type: "full" | "readonly";
+  onCreateOffer: (tokenId: string) => void;
+  onBurn: (tokenId: string) => void;
+  isSubmitting: boolean;
+}
+
+function NFTCard({ nft, address, type, onCreateOffer, onBurn, isSubmitting }: NFTCardProps) {
+  const [metadata, setMetadata] = useState<NFTMetadata | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadMetadata() {
+      if (nft.URI) {
+        const data = await fetchNFTMetadata(nft.URI);
+        setMetadata(data);
+      }
+      setIsLoading(false);
+    }
+    loadMetadata();
+  }, [nft.URI]);
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="aspect-square relative bg-muted">
+        {isLoading ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : metadata?.image ? (
+          <img
+            src={ipfsToHttp(metadata.image)}
+            alt={metadata.name || 'NFT'}
+            className="object-cover w-full h-full"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+            No image
+          </div>
+        )}
+      </div>
+      <CardContent className="p-4">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium truncate">
+              {metadata?.name || `NFT #${nft.nft_serial}`}
+            </h3>
+            {metadata?.collection && (
+              <Badge variant="secondary" className="truncate max-w-[150px]">
+                {metadata.collection.name}
+              </Badge>
+            )}
+          </div>
+
+          {metadata?.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2">
+              {metadata.description}
+            </p>
+          )}
+
+          {metadata?.attributes && metadata.attributes.length > 0 && (
+            <div className="grid grid-cols-2 gap-1 mt-2">
+              {metadata.attributes.slice(0, 4).map((attr, index) => (
+                <div key={index} className="text-xs">
+                  <span className="text-muted-foreground">{attr.trait_type}:</span>{' '}
+                  <span className="font-medium">{attr.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {type === "full" && (
+            <div className="flex gap-2 mt-4">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" onClick={() => onCreateOffer(nft.NFTokenID)}>
+                    Sell
+                  </Button>
+                </DialogTrigger>
+              </Dialog>
+              <Button
+                variant="destructive"
+                onClick={() => onBurn(nft.NFTokenID)}
+                disabled={isSubmitting}
+              >
+                Burn
+              </Button>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 interface NFTListProps {
   address: string;
@@ -87,57 +190,7 @@ function NFTList({ address, type }: NFTListProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {nfts?.map((nft: any) => (
-        <Card key={nft.NFTokenID}>
-          <CardContent className="p-4">
-            <div className="space-y-2">
-              <div className="font-medium">Token ID: {nft.NFTokenID}</div>
-              <div className="text-sm text-muted-foreground">
-                Serial: {nft.nft_serial}
-              </div>
-              {type === "full" && (
-                <div className="flex gap-2 mt-4">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="outline"
-                        onClick={() => setSelectedNFT(nft)}
-                      >
-                        Sell
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Create Sell Offer</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <Input
-                          type="number"
-                          placeholder="Price in XRP"
-                          value={sellPrice}
-                          onChange={(e) => setSellPrice(e.target.value)}
-                        />
-                        <Button 
-                          className="w-full"
-                          onClick={() => handleCreateOffer(nft.NFTokenID)}
-                          disabled={isSubmitting}
-                        >
-                          {isSubmitting ? "Creating..." : "Create Offer"}
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                  <Button 
-                    variant="destructive"
-                    onClick={() => handleBurn(nft.NFTokenID)}
-                    disabled={isSubmitting}
-                  >
-                    Burn
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <NFTCard key={nft.NFTokenID} nft={nft} address={address} type={type} onCreateOffer={handleCreateOffer} onBurn={handleBurn} isSubmitting={isSubmitting} />
       ))}
     </div>
   );
