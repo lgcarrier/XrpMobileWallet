@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getTransactions } from "@/lib/xrpl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, Loader2 } from "lucide-react";
 
 interface TransactionListProps {
   address: string;
@@ -14,7 +14,11 @@ export function TransactionList({ address }: TransactionListProps) {
   });
 
   if (isLoading) {
-    return <div>Loading transactions...</div>;
+    return (
+      <div className="flex justify-center items-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -24,11 +28,20 @@ export function TransactionList({ address }: TransactionListProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         {transactions?.map((tx: any) => {
-          const isSent = tx.tx.Account === address;
-          const amount = tx.tx.Amount;
-          
+          // Handle transaction data based on the actual XRPL API response
+          const transaction = tx.tx || tx;
+          const isSent = transaction.Account === address;
+          const amount = typeof transaction.Amount === 'string' 
+            ? parseFloat(transaction.Amount) / 1000000 
+            : 0;
+
+          // Skip non-Payment transactions
+          if (transaction.TransactionType !== 'Payment') {
+            return null;
+          }
+
           return (
-            <div key={tx.tx.hash} className="flex items-center justify-between">
+            <div key={transaction.hash} className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-full ${isSent ? "bg-red-100" : "bg-green-100"}`}>
                   {isSent ? (
@@ -42,12 +55,14 @@ export function TransactionList({ address }: TransactionListProps) {
                     {isSent ? "Sent" : "Received"}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {new Date(tx.tx.date).toLocaleDateString()}
+                    {new Date(
+                      (transaction.date + 946684800) * 1000
+                    ).toLocaleDateString()}
                   </div>
                 </div>
               </div>
               <div className="font-medium">
-                {parseFloat(amount) / 1000000} XRP
+                {amount.toFixed(2)} XRP
               </div>
             </div>
           );
