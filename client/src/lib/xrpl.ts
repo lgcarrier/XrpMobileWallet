@@ -19,7 +19,7 @@ export async function createWallet() {
 export async function getBalance(address: string) {
   const client = await getClient();
   const response = await client.getXrpBalance(address);
-  return parseFloat(response);
+  return Number(response);
 }
 
 export async function getTransactions(address: string) {
@@ -33,6 +33,11 @@ export async function getTransactions(address: string) {
 }
 
 export async function sendXRP(wallet: Wallet, destination: string, amount: string) {
+  // Only allow sending if we have a private key
+  if (!wallet.privateKey) {
+    throw new Error("Cannot send XRP from a read-only wallet");
+  }
+
   const client = await getClient();
   const payment: Payment = {
     TransactionType: "Payment",
@@ -40,7 +45,7 @@ export async function sendXRP(wallet: Wallet, destination: string, amount: strin
     Amount: amount,
     Destination: destination
   };
-  
+
   const prepared = await client.autofill(payment);
   const signed = wallet.sign(prepared);
   const result = await client.submitAndWait(signed.tx_blob);
