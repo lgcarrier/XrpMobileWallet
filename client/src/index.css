@@ -3,11 +3,56 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: 0 0% 88%;
+    --foreground: 92 10% 15%;
+
+    --card: 0 0% 98%;
+    --card-foreground: 92 10% 15%;
+
+    --popover: 0 0% 98%;
+    --popover-foreground: 92 10% 15%;
+
+    --primary: 92 43% 34%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 35 30% 45%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 92%;
+    --muted-foreground: 92 5% 35%;
+
+    --accent: 45 50% 45%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 85% 45%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 20 5% 85%;
+    --input: 20 5% 85%;
+    --ring: 92 43% 34%;
+  }
+
   * {
     @apply border-border;
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-mono antialiased bg-background text-foreground;
+  }
+
+  /* Minecraft-inspired styles */
+  .btn, button, [type='button'], [type='submit'] {
+    @apply shadow-[inset_-2px_-4px_0_0_rgba(0,0,0,0.2)] hover:shadow-[inset_-1px_-2px_0_0_rgba(0,0,0,0.3)] active:shadow-none transition-shadow;
+  }
+
+  .card {
+    @apply shadow-[inset_-2px_-4px_0_0_rgba(0,0,0,0.1)] border-2;
+  }
+
+  /* Pixelated text effect for headings */
+  h1, h2, h3, .card-title {
+    @apply font-bold tracking-wide;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.1);
   }
 }
